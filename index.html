@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Spectrum FFT to Total SPL</title>
+    <script src="spectrumfft2spl.js"></script>
+  </head>
+  <body>
+  <h1>Spectrum FFT to Total SPL</h1>
+  	<fieldset title="Input" style="width: 80%" >
+  		<legend>Input</legend>
+  <textarea id="fft" rows="10" style="width: 90%" placeholder="Paste contents of one Spectrum fft file here" onclick="this.focus();this.select()"></textarea>
+  <br>
+  <label for="decibels" >Decibels</label>
+  	<input name="decibels" id="decibels" placeholder="63,125,1000,2000" value="63,125,1000,2000">
+  <br>
+  <label for="headers">Include headers in output</label>
+  <input type="checkbox" name="headers" id="headers" checked>
+  <br>
+  <input type="button" value="Click to Recalculate" onclick="recalculate()"/>
+  </fieldset>
+  <br>
+  	<fieldset title="Output" style="width: 80%" >
+  		<legend>Output</legend>
+  <textarea id="spl" rows="10" style="width: 90%" readonly="true" placeholder="Total SPL will appear here when input pasted" onclick="this.focus();this.select()"></textarea>
+</fieldset>
+<script>
+function recalculate(){
+	var answer = [];
+	try{
+		var decibels = document.getElementById("decibels").value.split(/\s*,\s*/).map(x => x.match(/^[0-9]+$/) ? parseInt(x,10) : "x").filter(x => !isNaN(x));
+		decibels = decibels.length == 0 ? [63,125,1000,2000] : decibels;
+
+		decibels.sort((a,b) => a - b);
+		document.getElementById("decibels").value = decibels.join(",");
+		var fft = document.getElementById("fft").value;
+		var result = spectrumfft2spl(fft,decibels);
+		if(result.length){
+			var wanted = ["instrument_id","time", "bin_width_Hz","fft_size"];
+			wanted = wanted.concat(decibels.map(x => "dB_re_1u_Pa_"+x+"Hz"));
+			wanted = wanted.concat(["dB_Ref_re_1uPa","dB_Ref_re_1V","model","serial_no","SPL_Total"]);
+			if(document.getElementById("headers").checked){
+				answer.push(wanted.join(","));
+			}
+			result[0].forEach( x => {
+				//console.log(x.payload);
+				var line = [];
+				wanted.forEach(key => {
+					line.push(x.payload[key]);
+				})
+				answer.push(line.join(","));
+			});
+
+		}else{
+			answer.push("No output was produced");
+		}
+	}catch(e){
+		answer.push("an error occurred (was the input correct format?)");
+		answer.push(""+e);
+	}
+	document.getElementById("spl").value = answer.join("\n");
+}
+  fetch('SBF1323_20190110_000000.txt')
+    .then(response => response.text())
+    .then(fft => document.getElementById("fft").value = fft)
+</script>
+  <p>You may find some suitable input fft at <a href="https://spiddal.marine.ie/data/hydrophones/" target="_blank">spiddal.marine.ie/data/hydrophones/</a></p>
+  <p><a href="https://github.com/IrishMarineInstitute/spectrumfft2spl">Fork me on github</a></p>
+  <br>
+  <br>
+  <br>
+  &copy; 2019 <a href="http://www.marine.ie" title="Irish Marine Institute website">Irish Marine Institute</a>
+  </body>
+</html>
